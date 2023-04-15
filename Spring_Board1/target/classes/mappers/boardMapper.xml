@@ -17,7 +17,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	</insert>
 	
 	<!-- 게시판 리스트 -->
-	<select id="listPage" resultType="kr.co.vo.BoardVO" parameterType="kr.co.vo.Criteria">
+	<select id="listPage" resultType="kr.co.vo.BoardVO" parameterType="kr.co.vo.SearchCriteria">
 		SELECT	BNO
 				, TITLE
 				, CONTENT
@@ -31,6 +31,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							, REGDATE
 							, ROW_NUMBER() OVER(ORDER BY BNO DESC) AS RNUM 
 							FROM MP_BOARD
+							WHERE 1=1
+							<include refid="search"></include>
 					) MP
 			WHERE RNUM BETWEEN #{rowStart} AND #{rowEnd}
 			ORDER BY BNO DESC
@@ -40,12 +42,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	<!-- 챗GPT의 설명 : 게시판 리스트 검색 쿼리문의 경우, CDATA 섹션이 없이 일반적인 SQL 문으로 작성되어도 문제가 되지 않습니다. 이는 쿼리문 내에 XML 문법에 영향을 줄만한 특수문자나 태그 등이 포함되어 있지 않기 때문입니다.
 	그러나 게시판 리스트 갯수를 검색하는 쿼리문의 경우, COUNT 함수를 사용하므로, 결과값이 숫자형태로 반환되어야 합니다. 만약 CDATA 섹션이 없이 일반적인 SQL 문으로 작성한다면, SELECT COUNT(BNO) 구문에서 괄호나 대소문자 등이 XML 문법과 충돌할 수 있으므로, 
 	CDATA 섹션을 사용해야 합니다. 이렇게 CDATA 섹션을 사용하면 SQL 문법 자체가 XML 문법에 영향을 받지 않으므로, 안전하게 SQL 문을 작성할 수 있습니다. -->
-	<select id="listCount" resultType="int">
+	<!-- 페이징구현까지 쓰던 mapper코드 -->
+<!-- 	<select id="listCount" resultType="int">
 		<![CDATA[
 			SELECT COUNT(BNO)
 				FROM MP_BOARD
 			WHERE BNO > 0
 		]]>
+	</select> -->
+	
+	<select id="listCount" parameterType="kr.co.vo.SearchCriteria" resultType="int">
+			SELECT COUNT(BNO)
+				FROM MP_BOARD
+				WHERE 1=1
+			<include refid="search"></include>
+				AND BNO > 0
 	</select>
 	
 	<!-- 게시판 조회 -->
@@ -58,6 +69,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			FROM MP_BOARD
 			WHERE BNO = #{bno}
 	</select>
+	
+	<sql id="search">
+		<if test="searchType != null">
+			<if test="searchType == 't'.toString()">AND TITLE LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'c'.toString()">AND CONTENT LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'w'.toString()">AND WRITER LIKE '%' || #{keyword} || '%'</if>
+			<if test="searchType == 'tc'.toString()">AND (TITLE LIKE '%' || #{keyword} || '%') or (CONTENT LIKE '%' || #{keyword} || '%')</if>
+		</if>
+	</sql>
 	
 	<!-- 게시판 수정 -->
 	<update id="update" parameterType="kr.co.vo.BoardVO">
